@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Police du filigrane, embarquée pour un rendu identique sur tous les systèmes (licence SIL OFL 1.1, voir Fonts/OFL.txt) -->
-    <EmbeddedResource Include="Fonts\Inter-SemiBold.otf" LogicalName="DocCompressor.Core.Fonts.Inter-SemiBold.otf" />
+    <!-- Police du filigrane (Liberation Sans, mêmes proportions qu'Arial), embarquée pour un rendu identique sur tous les systèmes (licence SIL OFL 1.1, voir Fonts/OFL.txt) -->
+    <EmbeddedResource Include="Fonts\LiberationSans-Regular.ttf" LogicalName="DocCompressor.Core.Fonts.LiberationSans-Regular.ttf" />
   </ItemGroup>
 
   <ItemGroup>

@@ -33,7 +33,7 @@ Comme le service public [FiligraneFacile](https://filigrane.beta.gouv.fr/), l'ap
 2. Laissez « Ajouter la date du jour » coché pour dater l'envoi : le texte devient « … – le 29/10/2026 ». Le texte exact est affiché sous le champ.
 3. Compressez (ou fusionnez) comme d'habitude.
 
-Le texte est répété en diagonale sur toute la surface, en gris semi-transparent bordé de blanc (lisible sur les zones claires comme sombres). Il est **incrusté dans l'image** : les PDF sont donc toujours convertis en images, même s'ils étaient déjà sous la limite, afin que le filigrane ne puisse pas être retiré en supprimant un calque. Le texte du filigrane n'est pas mémorisé d'une utilisation à l'autre, pour éviter d'envoyer par erreur un document destiné à un autre organisme.
+L'aspect reprend celui de FiligraneFacile, mesuré sur une page traitée par le service : texte en police type Arial répété en lignes obliques (25°) sur toute la surface, chaque ligne en gris, rouge ou bleu semi-transparent, avec une ombre grise floue. Il est **incrusté dans l'image** : les PDF sont donc toujours convertis en images, même s'ils étaient déjà sous la limite, afin que le filigrane ne puisse pas être retiré en supprimant un calque. Le texte du filigrane n'est pas mémorisé d'une utilisation à l'autre, pour éviter d'envoyer par erreur un document destiné à un autre organisme.
 
 ## Fonctionnement
 
@@ -80,7 +80,7 @@ dotnet test
 
 Chaque plateforme donne **un seul exécutable autonome** (environ 50 Mo) qui ne nécessite pas d'installer .NET. Sous Linux, il faut les bibliothèques habituelles d'une application graphique (X11, fontconfig).
 
-Bibliothèques utilisées : Avalonia et SkiaSharp (MIT), PDFsharp 6.2.4 (MIT — les versions 6.5 et suivantes sont sous licence AGPL, ne pas mettre à jour sans vérifier), PDFium via les paquets `bblanchon.PDFium` (Apache 2.0). La police du filigrane, Inter SemiBold, est embarquée dans le moteur (SIL Open Font License 1.1, voir `DocCompressor.Core/Fonts/OFL.txt`).
+Bibliothèques utilisées : Avalonia et SkiaSharp (MIT), PDFsharp 6.2.4 (MIT — les versions 6.5 et suivantes sont sous licence AGPL, ne pas mettre à jour sans vérifier), PDFium via les paquets `bblanchon.PDFium` (Apache 2.0). La police du filigrane, Liberation Sans (mêmes proportions qu'Arial), est embarquée dans le moteur (SIL Open Font License 1.1, voir `DocCompressor.Core/Fonts/OFL.txt`).
 
 ## Structure
 
@@ -98,7 +98,7 @@ Bibliothèques utilisées : Avalonia et SkiaSharp (MIT), PDFsharp 6.2.4 (MIT —
 │   ├── DocumentCompressor.cs          # Points d'entrée : compression d'un fichier, fusion en un PDF
 │   ├── FileCompressor.cs              # Enregistrement des résultats, noms de fichiers
 │   ├── Imaging/                       # Décodage, réencodage JPEG, recherche de la qualité, filigrane
-│   ├── Fonts/                         # Police du filigrane (Inter) et sa licence
+│   ├── Fonts/                         # Police du filigrane (Liberation Sans) et sa licence
 │   └── Pdf/                           # Fusion, recompression des images (PDFsharp), rendu des pages (PDFium)
 │
 └── DocCompressor.Tests/               # Tests (xUnit) avec documents générés

@@ -38,7 +38,7 @@ public class WatermarkTests
     [Fact]
     public void EmbeddedFontCoversFrenchText()
     {
-        Assert.Equal("Inter", Watermark.Typeface.FamilyName);
+        Assert.Equal("Liberation Sans", Watermark.Typeface.FamilyName);
         using var font = new SKFont(Watermark.Typeface);
         Assert.True(font.ContainsGlyphs("àâçéèêëîïôùûüÿœæÀÉÈÇ«»–’€"));
     }
@@ -76,15 +76,37 @@ public class WatermarkTests
     }
 
     [Fact]
-    public void BlackAndWhiteScanStaysGrayWithWatermark()
+    public void WatermarkMixesGrayAndColoredLines()
     {
-        using var scan = TestFiles.ScannedText(1700, 2400);
-        var input = TestFiles.Jpeg(scan, 95);
+        using var page = WhitePage(2480, 3508);
 
-        var outcome = DocumentCompressor.Compress(input, ".jpg", WithWatermark);
+        Watermark.Apply(page, Text);
 
-        using var codec = SKCodec.Create(new SKMemoryStream(outcome.Data));
-        Assert.Equal(SKColorType.Gray8, codec.Info.ColorType);
+        int gray = 0, red = 0, blue = 0;
+        for (int y = 0; y < page.Height; y += 3)
+            for (int x = 0; x < page.Width; x += 3)
+            {
+                var c = page.GetPixel(x, y);
+                if ((c.Red + c.Green + c.Blue) / 3 > 200)
+                    continue;
+                if (c.Red - c.Blue > 30) red++;
+                else if (c.Blue - c.Red > 10) blue++;
+                else gray++;
+            }
+        Assert.True(gray > 1000, $"gris : {gray}");
+        Assert.True(red + blue > 300, $"rouge : {red}, bleu : {blue}");
+    }
+
+    [Fact]
+    public void SameTextGivesTheSameWatermark()
+    {
+        using var page = WhitePage(1200, 900);
+        var input = TestFiles.Jpeg(page, 90);
+
+        var first = DocumentCompressor.Compress(input, ".jpg", WithWatermark);
+        var second = DocumentCompressor.Compress(input, ".jpg", WithWatermark);
+
+        Assert.Equal(first.Data, second.Data);
     }
 
     [Fact]
