@@ -11,6 +11,7 @@ public enum FileStatus
     Pending,
     Processing,
     Done,
+    Merged,
     Error,
     Unsupported,
 }
@@ -76,10 +77,11 @@ public sealed class FileItemViewModel : ViewModelBase
     public string StatusText => Status switch
     {
         FileStatus.Pending => "En attente",
-        FileStatus.Processing => "Compression…",
+        FileStatus.Processing => "En cours…",
         FileStatus.Done when _resultSize is long size && size < OriginalSize =>
             $"✓ Réduit de {Math.Round(100.0 * (OriginalSize - size) / OriginalSize)} %",
         FileStatus.Done => "✓ Déjà conforme",
+        FileStatus.Merged => "✓ Fusionné",
         FileStatus.Error => "✗ Échec",
         _ => "✗ Non pris en charge",
     };
@@ -87,7 +89,7 @@ public sealed class FileItemViewModel : ViewModelBase
     public IBrush StatusBrush => Status switch
     {
         FileStatus.Processing => WorkingBrush,
-        FileStatus.Done => SuccessBrush,
+        FileStatus.Done or FileStatus.Merged => SuccessBrush,
         FileStatus.Error or FileStatus.Unsupported => ErrorBrush,
         _ => NeutralBrush,
     };
@@ -104,7 +106,7 @@ public sealed class FileItemViewModel : ViewModelBase
     public string ResultSizeText => _resultSize is long size ? SizeFormatter.Format(size) : "—";
 
     /// <summary>
-    /// Fichier produit lors du dernier traitement (conservé si le fichier repasse en attente)
+    /// Fichier produit lors du dernier traitement : version compressée ou PDF fusionné
     /// </summary>
     public string? OutputPath
     {
@@ -112,7 +114,13 @@ public sealed class FileItemViewModel : ViewModelBase
         private set => SetField(ref _outputPath, value);
     }
 
-    public bool CanOpenOutput => Status == FileStatus.Done && OutputPath != null && File.Exists(OutputPath);
+    /// <summary>
+    /// Dernière version compressée de ce fichier seul (conservée si le fichier repasse en attente)
+    /// </summary>
+    public string? IndividualOutputPath { get; private set; }
+
+    public bool CanOpenOutput =>
+        Status is FileStatus.Done or FileStatus.Merged && OutputPath != null && File.Exists(OutputPath);
 
     public void MarkProcessing()
     {
@@ -124,9 +132,20 @@ public sealed class FileItemViewModel : ViewModelBase
     {
         _resultSize = result.FinalSize;
         OutputPath = result.OutputPath;
+        IndividualOutputPath = result.OutputPath;
         Details = $"{result.Details} → {System.IO.Path.GetFileName(result.OutputPath)}";
         OnPropertyChanged(nameof(ResultSizeText));
         Status = FileStatus.Done;
+        OnPropertyChanged(nameof(CanOpenOutput));
+    }
+
+    public void MarkMerged(string mergedPath)
+    {
+        _resultSize = null;
+        OutputPath = mergedPath;
+        Details = $"Intégré à « {System.IO.Path.GetFileName(mergedPath)} »";
+        OnPropertyChanged(nameof(ResultSizeText));
+        Status = FileStatus.Merged;
         OnPropertyChanged(nameof(CanOpenOutput));
     }
 

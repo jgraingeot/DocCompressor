@@ -13,6 +13,18 @@ Application de bureau (Windows et Linux) qui réduit des photos, des scans et de
 
 Les originaux ne sont jamais modifiés ni écrasés. Les réglages sont mémorisés (`%APPDATA%\DocCompressor` sous Windows, `~/.config/DocCompressor` sous Linux).
 
+### Regrouper plusieurs fichiers dans un seul PDF (recto/verso)
+
+Beaucoup d'organismes demandent le recto et le verso d'une carte d'identité dans **un seul fichier**. Pour cela :
+
+1. Ajoutez les fichiers (photos, scans, PDF) et cochez « Regrouper tous les fichiers dans un seul PDF ».
+2. Mettez-les dans l'ordre voulu avec les boutons ▲ et ▼ : c'est l'ordre des pages du PDF.
+3. Cochez « Deux images par page » pour placer le recto et le verso l'un au-dessus de l'autre sur la même page A4 (comme une photocopie). Sinon, chaque image occupe sa propre page.
+4. Choisissez le nom du PDF : par défaut, la partie commune des noms (`carte_identite_recto.jpg` + `carte_identite_verso.jpg` → `carte_identite.pdf`).
+5. Cliquez sur « Fusionner ». Le PDF obtenu respecte la taille maximale.
+
+Les pages des PDF ajoutés sont reprises telles quelles (texte conservé), puis l'ensemble est compressé comme un PDF ordinaire. Le PDF fusionné est enregistré dans le dossier du premier fichier, ou dans le dossier choisi.
+
 ## Fonctionnement
 
 | Fichier | Traitement |
@@ -73,10 +85,10 @@ Bibliothèques utilisées : Avalonia et SkiaSharp (MIT), PDFsharp 6.2.4 (MIT —
 │   └── AppSettings.cs                 # Réglages mémorisés
 │
 ├── DocCompressor.Core/                # Moteur de compression (sans interface)
-│   ├── DocumentCompressor.cs          # Point d'entrée : image ou PDF
+│   ├── DocumentCompressor.cs          # Points d'entrée : compression d'un fichier, fusion en un PDF
 │   ├── FileCompressor.cs              # Enregistrement des résultats, noms de fichiers
 │   ├── Imaging/                       # Décodage, réencodage JPEG, recherche de la qualité
-│   └── Pdf/                           # Recompression des images (PDFsharp), rendu des pages (PDFium)
+│   └── Pdf/                           # Fusion, recompression des images (PDFsharp), rendu des pages (PDFium)
 │
 └── DocCompressor.Tests/               # Tests (xUnit) avec documents générés
 ```

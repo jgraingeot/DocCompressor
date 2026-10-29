@@ -56,7 +56,7 @@ internal static class PdfRasterizer
             {
                 var (pageWidth, pageHeight) = pageSizes[i];
                 pages.Add(new ImagePage(encodings[i]!, pixelSizes[i].Width, pixelSizes[i].Height, grays[i],
-                    pageWidth, pageHeight, (0, 0, pageWidth, pageHeight)));
+                    pageWidth, pageHeight, new PageBox(0, 0, pageWidth, pageHeight)));
             }
 
             var pdf = ImagePdfWriter.Write(pages);
@@ -73,7 +73,10 @@ internal static class PdfRasterizer
             "(trop de pages pour cette limite : essayez de le découper).");
     }
 
-    private static (int Width, int Height) PixelSize((double Width, double Height) pageSize, int dpi)
+    /// <summary>
+    /// Taille en pixels d'une page rendue à la résolution demandée (plafonnée pour les grands formats)
+    /// </summary>
+    public static (int Width, int Height) PixelSize((double Width, double Height) pageSize, int dpi)
     {
         double width = pageSize.Width * dpi / 72.0;
         double height = pageSize.Height * dpi / 72.0;

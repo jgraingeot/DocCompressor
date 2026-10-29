@@ -107,6 +107,18 @@ public partial class MainWindow : Window
             ViewModel.Remove(item);
     }
 
+    private void OnMoveUpClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is FileItemViewModel item)
+            ViewModel.Move(item, -1);
+    }
+
+    private void OnMoveDownClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is FileItemViewModel item)
+            ViewModel.Move(item, +1);
+    }
+
     private void OnOpenOutputClick(object? sender, RoutedEventArgs e)
     {
         if ((sender as Control)?.DataContext is FileItemViewModel { OutputPath: string path })

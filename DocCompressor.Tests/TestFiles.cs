@@ -126,7 +126,7 @@ internal static class TestFiles
         for (int i = 0; i < pages; i++)
         {
             using var bitmap = photo ? Photo(width, height, i + 1) : ScannedText(width, height, i + 1);
-            list.Add(new ImagePage(Jpeg(bitmap, quality), width, height, false, 595.28, 841.89, (0, 0, 595.28, 841.89)));
+            list.Add(new ImagePage(Jpeg(bitmap, quality), width, height, false, 595.28, 841.89, new PageBox(0, 0, 595.28, 841.89)));
         }
         return ImagePdfWriter.Write(list);
     }

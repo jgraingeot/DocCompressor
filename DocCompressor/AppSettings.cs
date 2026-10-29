@@ -11,6 +11,7 @@ public sealed class AppSettings
     public decimal MaxSize { get; set; } = 1;
     public SizeUnit Unit { get; set; } = SizeUnit.Megabytes;
     public bool ConvertImagesToPdf { get; set; }
+    public bool TwoImagesPerPage { get; set; }
     public OutputLocation OutputLocation { get; set; } = OutputLocation.NextToOriginal;
     public string? OutputFolder { get; set; }
 

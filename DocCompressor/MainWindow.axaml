@@ -3,11 +3,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:DocCompressor.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="760"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="800"
         x:Class="DocCompressor.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Compresseur de documents"
-        Width="960" Height="760"
+        Width="1000" Height="800"
         MinWidth="760" MinHeight="560"
         Background="#F3F4F6">
 
@@ -70,7 +70,7 @@
 
         <Grid IsVisible="{Binding !IsEmpty}" RowDefinitions="Auto,*">
           <Border Grid.Row="0" Padding="16,10" BorderBrush="#E6E8EB" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,90,90,190,90">
+            <Grid ColumnDefinitions="*,90,90,170,150">
               <TextBlock Classes="columnHeader" Text="{Binding FileCountText}"/>
               <TextBlock Grid.Column="1" Classes="columnHeader" Text="Origine" HorizontalAlignment="Right"/>
               <TextBlock Grid.Column="2" Classes="columnHeader" Text="Résultat" HorizontalAlignment="Right"/>
@@ -83,7 +83,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileItemViewModel">
                   <Border Padding="16,8" BorderBrush="#F0F1F3" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="*,90,90,190,90">
+                    <Grid ColumnDefinitions="*,90,90,170,150">
                       <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
@@ -98,10 +98,19 @@
                       <TextBlock Grid.Column="3" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
                                  FontWeight="SemiBold" Margin="20,0,0,0" VerticalAlignment="Center"
                                  TextTrimming="CharacterEllipsis"/>
-                      <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4"
+                      <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2"
                                   HorizontalAlignment="Right">
                         <Button Classes="small" Content="Voir" IsVisible="{Binding CanOpenOutput}"
-                                ToolTip.Tip="Ouvrir le fichier compressé" Click="OnOpenOutputClick"/>
+                                ToolTip.Tip="Ouvrir le fichier produit" Click="OnOpenOutputClick"/>
+                        <!-- Ordre des pages du PDF fusionné -->
+                        <Button Classes="small" Content="▲" ToolTip.Tip="Monter (page précédente)"
+                                IsVisible="{ReflectionBinding $parent[Window].DataContext.MergeMode}"
+                                IsEnabled="{ReflectionBinding $parent[Window].DataContext.IsIdle}"
+                                Click="OnMoveUpClick"/>
+                        <Button Classes="small" Content="▼" ToolTip.Tip="Descendre (page suivante)"
+                                IsVisible="{ReflectionBinding $parent[Window].DataContext.MergeMode}"
+                                IsEnabled="{ReflectionBinding $parent[Window].DataContext.IsIdle}"
+                                Click="OnMoveDownClick"/>
                         <Button Classes="small" Content="✕" ToolTip.Tip="Retirer de la liste"
                                 IsEnabled="{ReflectionBinding $parent[Window].DataContext.IsIdle}"
                                 Click="OnRemoveClick"/>
@@ -118,7 +127,7 @@
 
     <!-- Réglages -->
     <Border Grid.Row="2" Classes="card" Padding="16" Margin="0,16,0,0" IsEnabled="{Binding IsIdle}">
-      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
         <TextBlock Grid.Row="0" Classes="label" Text="Taille maximale par fichier"/>
         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
           <NumericUpDown Value="{Binding MaxSize}" Increment="{Binding SizeIncrement}"
@@ -131,12 +140,29 @@
                      TextWrapping="Wrap" MaxWidth="360"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="1" Classes="label" Text="Images" Margin="0,12,24,0"/>
-        <CheckBox Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding ConvertImagesToPdf}"
+        <TextBlock Grid.Row="1" Classes="label" Text="Fusion" Margin="0,12,24,0"/>
+        <CheckBox Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding MergeMode}"
+                  Content="Regrouper tous les fichiers dans un seul PDF (par exemple le recto et le verso d'une carte)"/>
+
+        <!-- Fichier par fichier : option de conversion des images -->
+        <TextBlock Grid.Row="2" Classes="label" Text="Images" Margin="0,12,24,0" IsVisible="{Binding SeparateMode}"/>
+        <CheckBox Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding ConvertImagesToPdf}"
+                  IsVisible="{Binding SeparateMode}"
                   Content="Convertir les photos et scans en PDF (page A4)"/>
 
-        <TextBlock Grid.Row="2" Classes="label" Text="Enregistrer" Margin="0,18,24,0" VerticalAlignment="Top"/>
-        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" Spacing="4">
+        <!-- Fusion : nom du PDF et mise en page des images -->
+        <TextBlock Grid.Row="2" Classes="label" Text="Nom du PDF" Margin="0,12,24,0" IsVisible="{Binding MergeMode}"/>
+        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" Orientation="Horizontal" Spacing="6"
+                    IsVisible="{Binding MergeMode}">
+          <TextBox Text="{Binding MergeName}" Watermark="{Binding SuggestedMergeName}" Width="260"
+                   VerticalAlignment="Center"/>
+          <TextBlock Text=".pdf" VerticalAlignment="Center" Margin="0,0,18,0"/>
+          <CheckBox IsChecked="{Binding TwoImagesPerPage}"
+                    Content="Deux images par page (recto et verso sur la même page)"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" Classes="label" Text="Enregistrer" Margin="0,18,24,0" VerticalAlignment="Top"/>
+        <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" Spacing="4">
           <!-- Pas de GroupName : le gestionnaire de groupe d'Avalonia 11.0 décoche l'autre bouton en écrasant sa liaison.
                L'exclusivité est assurée par le modèle de vue. -->
           <!-- TextBlock explicite : dans un Content texte, « _ » serait pris pour un raccourci clavier -->
@@ -166,8 +192,9 @@
         <TextBlock Text="{Binding ValidationMessage}" Foreground="#DD0000" TextWrapping="Wrap"
                    IsVisible="{Binding HasValidationMessage}"/>
         <TextBlock Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis"
-                   IsVisible="{Binding !HasValidationMessage}"/>
-        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" ShowProgressText="True"
+                   ToolTip.Tip="{Binding StatusMessage}" IsVisible="{Binding !HasValidationMessage}"/>
+        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"
+                     IsIndeterminate="{Binding IsIndeterminate}" ShowProgressText="{Binding ShowProgressText}"
                      IsVisible="{Binding ShowProgress}"/>
       </StackPanel>
 

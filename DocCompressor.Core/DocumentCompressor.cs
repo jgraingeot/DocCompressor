@@ -52,8 +52,7 @@ public static class DocumentCompressor
     /// </summary>
     public static CompressionOutcome Compress(byte[] data, string extension, CompressionOptions options, CancellationToken ct = default)
     {
-        if (options.MaxBytes < MinimumMaxBytes)
-            throw new CompressionException($"La taille maximale doit être d'au moins {SizeFormatter.Format(MinimumMaxBytes)}.");
+        CheckMaxBytes(options);
         if (data.Length == 0)
             throw new CompressionException("Le fichier est vide.");
 
@@ -62,7 +61,40 @@ public static class DocumentCompressor
             : ImageCompressor.Compress(data, extension, options, ct);
     }
 
-    private static bool IsPdf(byte[] data)
+    /// <summary>
+    /// Fusionne des documents (images et PDF), dans l'ordre donné, en un seul PDF sous la taille maximale.
+    /// Les pages des PDF sont reprises telles quelles ; chaque image occupe une page A4,
+    /// ou une demi-page si twoImagesPerPage est vrai (recto et verso d'une carte sur la même page).
+    /// La méthode retournée est celle de la compression du PDF assemblé (Unchanged s'il tenait déjà dans la limite).
+    /// </summary>
+    public static CompressionOutcome Merge(
+        IReadOnlyList<(string Name, byte[] Data)> documents, CompressionOptions options,
+        bool twoImagesPerPage = false, CancellationToken ct = default)
+    {
+        CheckMaxBytes(options);
+        if (documents.Count == 0)
+            throw new CompressionException("Aucun fichier à fusionner.");
+        var empty = documents.FirstOrDefault(d => d.Data.Length == 0);
+        if (empty.Data != null)
+            throw new CompressionException($"« {empty.Name} » : le fichier est vide.");
+
+        var (pdf, pageCount) = DocumentMerger.Build(documents, twoImagesPerPage, ct);
+        var outcome = PdfCompressor.Compress(pdf, ".pdf", options, ct);
+
+        string summary = $"PDF fusionné de {(pageCount > 1 ? $"{pageCount} pages" : "1 page")}";
+        return outcome with
+        {
+            Details = outcome.Method == CompressionMethod.Unchanged ? summary : $"{summary}. {outcome.Details}",
+        };
+    }
+
+    private static void CheckMaxBytes(CompressionOptions options)
+    {
+        if (options.MaxBytes < MinimumMaxBytes)
+            throw new CompressionException($"La taille maximale doit être d'au moins {SizeFormatter.Format(MinimumMaxBytes)}.");
+    }
+
+    internal static bool IsPdf(byte[] data)
     {
         // L'en-tête %PDF- peut être précédé de quelques octets parasites
         var header = "%PDF-"u8;

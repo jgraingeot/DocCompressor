@@ -135,7 +135,7 @@ public class PdfCompressionTests
     public void ImagePdfWriterOverheadEstimateIsAnUpperBound()
     {
         var pages = Enumerable.Range(0, 12)
-            .Select(_ => new ImagePage(new byte[1000], 10000, 10000, false, 2000.5, 3000.25, (10.5, 10.5, 1980, 2980)))
+            .Select(_ => new ImagePage(new byte[1000], 10000, 10000, false, 2000.5, 3000.25, new PageBox(10.5, 10.5, 1980, 2980)))
             .ToList();
 
         var pdf = ImagePdfWriter.Write(pages);

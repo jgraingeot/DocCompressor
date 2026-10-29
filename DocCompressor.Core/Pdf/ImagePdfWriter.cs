@@ -15,17 +15,13 @@ namespace DocCompressor.Core.Pdf;
 /// <param name="ImageBox">Position et taille de l'image sur la page, en points (origine en bas à gauche)</param>
 internal sealed record ImagePage(
     byte[] Jpeg, int PixelWidth, int PixelHeight, bool Gray,
-    double PageWidth, double PageHeight, (double X, double Y, double Width, double Height) ImageBox);
+    double PageWidth, double PageHeight, PageBox ImageBox);
 
 /// <summary>
 /// Écriture minimale d'un PDF dont chaque page est une image JPEG
 /// </summary>
 internal static class ImagePdfWriter
 {
-    private const double A4Width = 595.28;
-    private const double A4Height = 841.89;
-    private const double A4Margin = 28.35; // 1 cm
-
     /// <summary>
     /// Majoration de la taille du PDF par rapport à la somme des JPEG (structure du fichier)
     /// </summary>
@@ -36,12 +32,7 @@ internal static class ImagePdfWriter
     /// </summary>
     public static byte[] WriteImageOnA4(byte[] jpeg, int pixelWidth, int pixelHeight, bool gray)
     {
-        bool landscape = pixelWidth > pixelHeight;
-        double pageWidth = landscape ? A4Height : A4Width;
-        double pageHeight = landscape ? A4Width : A4Height;
-        double scale = Math.Min((pageWidth - 2 * A4Margin) / pixelWidth, (pageHeight - 2 * A4Margin) / pixelHeight);
-        double width = pixelWidth * scale, height = pixelHeight * scale;
-        var box = ((pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+        var (pageWidth, pageHeight, box) = PageLayout.Single(pixelWidth, pixelHeight);
         return Write([new ImagePage(jpeg, pixelWidth, pixelHeight, gray, pageWidth, pageHeight, box)]);
     }
 

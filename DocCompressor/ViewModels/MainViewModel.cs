@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using DocCompressor.Core;
 
 namespace DocCompressor.ViewModels;
@@ -14,7 +15,13 @@ public sealed class MainViewModel : ViewModelBase
     private bool _convertImagesToPdf;
     private OutputLocation _outputLocation;
     private string? _outputFolder;
+    private bool _mergeMode;
+    private bool _twoImagesPerPage;
+    private string _mergeName = "";
+    // PDF fusionné produit pour la liste actuelle : remplacé si la fusion est relancée
+    private string? _mergedOutputPath;
     private bool _isBusy;
+    private bool _isIndeterminate;
     private double _progress;
     private string _statusMessage = "";
     private CancellationTokenSource? _cancellation;
@@ -27,11 +34,16 @@ public sealed class MainViewModel : ViewModelBase
         _convertImagesToPdf = settings.ConvertImagesToPdf;
         _outputLocation = settings.OutputLocation;
         _outputFolder = settings.OutputFolder;
+        _twoImagesPerPage = settings.TwoImagesPerPage;
 
-        Files.CollectionChanged += (_, _) =>
+        Files.CollectionChanged += (_, e) =>
         {
+            // Nouvelle liste de fichiers : un nouveau PDF fusionné ne remplacera pas le précédent
+            if (e.Action != NotifyCollectionChangedAction.Move)
+                _mergedOutputPath = null;
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(FileCountText));
+            OnPropertyChanged(nameof(SuggestedMergeName));
             RefreshCommands();
         };
     }
@@ -81,6 +93,56 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Vrai pour regrouper tous les fichiers dans un seul PDF, au lieu de les compresser un par un
+    /// </summary>
+    public bool MergeMode
+    {
+        get => _mergeMode;
+        set
+        {
+            if (!SetField(ref _mergeMode, value))
+                return;
+            OnPropertyChanged(nameof(SeparateMode));
+            OnPropertyChanged(nameof(CompressButtonText));
+            OnPropertyChanged(nameof(SaveNextToOriginalText));
+            OnSettingsChanged();
+        }
+    }
+
+    public bool SeparateMode => !_mergeMode;
+
+    /// <summary>
+    /// Recto et verso sur la même page : les images sont placées deux par page dans le PDF fusionné
+    /// </summary>
+    public bool TwoImagesPerPage
+    {
+        get => _twoImagesPerPage;
+        set
+        {
+            if (SetField(ref _twoImagesPerPage, value))
+                OnSettingsChanged();
+        }
+    }
+
+    /// <summary>
+    /// Nom choisi pour le PDF fusionné ; vide pour utiliser le nom proposé
+    /// </summary>
+    public string MergeName
+    {
+        get => _mergeName;
+        set
+        {
+            if (SetField(ref _mergeName, value ?? ""))
+                OnSettingsChanged();
+        }
+    }
+
+    public string SuggestedMergeName =>
+        FileCompressor.SuggestMergedName(MergeCandidates.Select(f => f.Path).ToList());
+
+    private IEnumerable<FileItemViewModel> MergeCandidates => Files.Where(f => f.Status != FileStatus.Unsupported);
+
     public bool SaveNextToOriginal
     {
         get => _outputLocation == OutputLocation.NextToOriginal;
@@ -101,7 +163,9 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
-    public string SaveNextToOriginalText => $"À côté de chaque original, avec le suffixe « {OutputSettings.DefaultSuffix} »";
+    public string SaveNextToOriginalText => _mergeMode
+        ? "Dans le dossier du premier fichier de la liste"
+        : $"À côté de chaque original, avec le suffixe « {OutputSettings.DefaultSuffix} »";
 
     public string? OutputFolder
     {
@@ -154,7 +218,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public bool IsIdle => !IsBusy;
 
-    public string CompressButtonText => IsBusy ? "Annuler" : "Compresser";
+    public string CompressButtonText => IsBusy ? "Annuler" : _mergeMode ? "Fusionner" : "Compresser";
 
     public bool CanCompress => !IsBusy && ValidationMessage == null && Files.Any(f => f.CanProcess);
 
@@ -175,6 +239,21 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public bool ShowProgress => IsBusy || Progress > 0;
+
+    /// <summary>
+    /// Progression non mesurable (fusion : une seule opération)
+    /// </summary>
+    public bool IsIndeterminate
+    {
+        get => _isIndeterminate;
+        private set
+        {
+            if (SetField(ref _isIndeterminate, value))
+                OnPropertyChanged(nameof(ShowProgressText));
+        }
+    }
+
+    public bool ShowProgressText => !IsIndeterminate;
 
     public string StatusMessage
     {
@@ -242,6 +321,21 @@ public sealed class MainViewModel : ViewModelBase
             Files.Remove(item);
     }
 
+    /// <summary>
+    /// Déplace un fichier dans la liste (ordre des pages du PDF fusionné)
+    /// </summary>
+    public void Move(FileItemViewModel item, int offset)
+    {
+        int index = Files.IndexOf(item);
+        int target = index + offset;
+        if (IsBusy || index < 0 || target < 0 || target >= Files.Count)
+            return;
+        Files.Move(index, target);
+        OnPropertyChanged(nameof(SuggestedMergeName));
+        if (_mergeMode)
+            OnSettingsChanged();
+    }
+
     public void Clear()
     {
         if (IsBusy)
@@ -265,14 +359,33 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanCompress || MaxBytes is not long maxBytes)
             return;
 
-        var items = Files.Where(f => f.CanProcess).ToList();
         var options = new CompressionOptions { MaxBytes = maxBytes, ConvertImagesToPdf = ConvertImagesToPdf };
         var output = new OutputSettings { Location = _outputLocation, Folder = _outputFolder };
 
         _cancellation = new CancellationTokenSource();
-        var token = _cancellation.Token;
         IsBusy = true;
         Progress = 0;
+        try
+        {
+            if (_mergeMode)
+                await MergeAsync(options, output, _cancellation.Token);
+            else
+                await CompressEachAsync(options, output, _cancellation.Token);
+        }
+        finally
+        {
+            _cancellation.Dispose();
+            _cancellation = null;
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Compresse les fichiers un par un
+    /// </summary>
+    private async Task CompressEachAsync(CompressionOptions options, OutputSettings output, CancellationToken token)
+    {
+        var items = Files.Where(f => f.CanProcess).ToList();
 
         int processed = 0, failures = 0;
         bool cancelled = false;
@@ -313,17 +426,58 @@ public sealed class MainViewModel : ViewModelBase
             Progress = 100.0 * processed / items.Count;
         }
 
-        _cancellation.Dispose();
-        _cancellation = null;
-        IsBusy = false;
-
         int succeeded = processed - failures;
-        string limit = SizeFormatter.Format(maxBytes);
+        string limit = SizeFormatter.Format(options.MaxBytes);
         StatusMessage = cancelled
             ? $"Compression annulée ({succeeded} fichier(s) prêt(s))."
             : failures == 0
                 ? succeeded > 1 ? $"Terminé : {succeeded} fichiers prêts, tous sous {limit}." : $"Terminé : fichier prêt, sous {limit}."
                 : $"Terminé : {succeeded} fichier(s) prêt(s), {failures} échec(s).";
+    }
+
+    /// <summary>
+    /// Regroupe tous les fichiers pris en charge, dans l'ordre de la liste, en un seul PDF
+    /// </summary>
+    private async Task MergeAsync(CompressionOptions options, OutputSettings output, CancellationToken token)
+    {
+        var items = MergeCandidates.ToList();
+        var paths = items.Select(f => f.Path).ToList();
+        var name = string.IsNullOrWhiteSpace(_mergeName) ? SuggestedMergeName : _mergeName;
+        bool twoImagesPerPage = _twoImagesPerPage;
+
+        foreach (var item in items)
+            item.MarkProcessing();
+        StatusMessage = items.Count > 1 ? $"Fusion de {items.Count} fichiers…" : "Conversion en PDF…";
+        IsIndeterminate = true;
+        try
+        {
+            DeleteFile(_mergedOutputPath, paths);
+            var result = await Task.Run(
+                () => FileCompressor.MergeFiles(paths, name, options, output, twoImagesPerPage, token), token);
+            _mergedOutputPath = result.OutputPath;
+            foreach (var item in items)
+                item.MarkMerged(result.OutputPath);
+            Progress = 100;
+            StatusMessage = $"Terminé : « {Path.GetFileName(result.OutputPath)} », " +
+                            $"{SizeFormatter.Format(result.FinalSize)}. {result.Details}";
+        }
+        catch (OperationCanceledException)
+        {
+            foreach (var item in items)
+                item.Reset();
+            StatusMessage = "Fusion annulée.";
+        }
+        catch (Exception exception)
+        {
+            string message = exception is CompressionException ? exception.Message : "Erreur inattendue : " + exception.Message;
+            foreach (var item in items)
+                item.MarkError(message);
+            StatusMessage = "Échec de la fusion : " + message;
+        }
+        finally
+        {
+            IsIndeterminate = false;
+        }
     }
 
     /// <summary>
@@ -345,6 +499,7 @@ public sealed class MainViewModel : ViewModelBase
         _settings.MaxSize = _maxSize ?? 1;
         _settings.Unit = _unit;
         _settings.ConvertImagesToPdf = _convertImagesToPdf;
+        _settings.TwoImagesPerPage = _twoImagesPerPage;
         _settings.OutputLocation = _outputLocation;
         _settings.OutputFolder = _outputFolder;
         _settings.Save();
@@ -389,14 +544,19 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>
     /// Supprime le fichier produit lors d'un précédent traitement du même document, pour ne pas accumuler les copies
     /// </summary>
-    private static void DeletePreviousOutput(FileItemViewModel item)
+    private static void DeletePreviousOutput(FileItemViewModel item) =>
+        DeleteFile(item.IndividualOutputPath, [item.Path]);
+
+    /// <summary>
+    /// Supprime un ancien résultat, sauf s'il s'agit d'un des fichiers d'origine
+    /// </summary>
+    private static void DeleteFile(string? path, IReadOnlyList<string> originals)
     {
-        var previous = item.OutputPath;
-        if (previous == null || previous == item.Path || !File.Exists(previous))
+        if (path == null || originals.Contains(path) || !File.Exists(path))
             return;
         try
         {
-            File.Delete(previous);
+            File.Delete(path);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
