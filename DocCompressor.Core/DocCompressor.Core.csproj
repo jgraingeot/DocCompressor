@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DocCompressor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Même version que celle embarquée par Avalonia 11.0.10 -->
+    <PackageReference Include="SkiaSharp" Version="2.88.7" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.7" />
+    <!-- PDFsharp 6.2.x est sous licence MIT (les versions 6.5+ sont passées en AGPL) -->
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <!-- Binaires natifs PDFium (rendu des pages PDF) -->
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="158.0.8125" />
+    <PackageReference Include="bblanchon.PDFium.Linux" Version="158.0.8125" />
+    <PackageReference Include="bblanchon.PDFium.macOS" Version="158.0.8125" />
+  </ItemGroup>
+</Project>
