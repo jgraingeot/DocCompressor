@@ -15,11 +15,13 @@ internal static class ImageCompressor
 
     public static CompressionOutcome Compress(byte[] data, string extension, CompressionOptions options, CancellationToken ct)
     {
-        if (!options.ConvertImagesToPdf && data.Length <= options.MaxBytes && IsJpegOrPng(data))
+        if (!options.ConvertImagesToPdf && !options.HasWatermark && data.Length <= options.MaxBytes && IsJpegOrPng(data))
             return new CompressionOutcome(data, extension, CompressionMethod.Unchanged,
                 "Déjà sous la limite : fichier conservé tel quel");
 
         using var bitmap = ImageLoader.Load(data);
+        if (options.HasWatermark)
+            Watermark.Apply(bitmap, options.WatermarkText!);
         bool gray = ImageOps.IsGrayscale(bitmap);
         int longSide = Math.Max(bitmap.Width, bitmap.Height);
 
@@ -48,6 +50,8 @@ internal static class ImageCompressor
                     details += $", redimensionnée à {Math.Round(scale * 100)} %";
                 if (gray)
                     details += ", niveaux de gris";
+                if (options.HasWatermark)
+                    details += ", filigrane";
 
                 return options.ConvertImagesToPdf
                     ? new CompressionOutcome(result, ".pdf", CompressionMethod.ImageToPdf, "PDF A4 — image " + details)

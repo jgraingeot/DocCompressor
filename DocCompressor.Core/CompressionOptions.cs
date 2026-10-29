@@ -19,4 +19,12 @@ public sealed class CompressionOptions
     /// Si vrai, les images sont converties en PDF (une page A4) au lieu de rester en JPEG
     /// </summary>
     public bool ConvertImagesToPdf { get; init; }
+
+    /// <summary>
+    /// Texte du filigrane à incruster sur tout le document (vide : pas de filigrane).
+    /// Avec un filigrane, les PDF sont toujours convertis en images pour qu'il ne puisse pas être retiré.
+    /// </summary>
+    public string? WatermarkText { get; init; }
+
+    internal bool HasWatermark => !string.IsNullOrWhiteSpace(WatermarkText);
 }

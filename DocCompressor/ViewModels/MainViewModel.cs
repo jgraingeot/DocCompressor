@@ -18,6 +18,9 @@ public sealed class MainViewModel : ViewModelBase
     private bool _mergeMode;
     private bool _twoImagesPerPage;
     private string _mergeName = "";
+    private bool _watermarkEnabled;
+    private string _watermarkInput = "";
+    private bool _watermarkAddDate;
     // PDF fusionné produit pour la liste actuelle : remplacé si la fusion est relancée
     private string? _mergedOutputPath;
     private bool _isBusy;
@@ -35,6 +38,7 @@ public sealed class MainViewModel : ViewModelBase
         _outputLocation = settings.OutputLocation;
         _outputFolder = settings.OutputFolder;
         _twoImagesPerPage = settings.TwoImagesPerPage;
+        _watermarkAddDate = settings.WatermarkAddDate;
 
         Files.CollectionChanged += (_, e) =>
         {
@@ -143,6 +147,57 @@ public sealed class MainViewModel : ViewModelBase
 
     private IEnumerable<FileItemViewModel> MergeCandidates => Files.Where(f => f.Status != FileStatus.Unsupported);
 
+    /// <summary>
+    /// Ajout d'un filigrane (le texte n'est pas mémorisé : il dépend du destinataire)
+    /// </summary>
+    public bool WatermarkEnabled
+    {
+        get => _watermarkEnabled;
+        set
+        {
+            if (SetField(ref _watermarkEnabled, value))
+                OnWatermarkChanged();
+        }
+    }
+
+    public string WatermarkInput
+    {
+        get => _watermarkInput;
+        set
+        {
+            if (SetField(ref _watermarkInput, value ?? ""))
+                OnWatermarkChanged();
+        }
+    }
+
+    public bool WatermarkAddDate
+    {
+        get => _watermarkAddDate;
+        set
+        {
+            if (SetField(ref _watermarkAddDate, value))
+                OnWatermarkChanged();
+        }
+    }
+
+    /// <summary>
+    /// Texte qui sera réellement incrusté, ou null si pas de filigrane
+    /// </summary>
+    private string? WatermarkText => _watermarkEnabled && !string.IsNullOrWhiteSpace(_watermarkInput)
+        ? Core.WatermarkText.Compose(_watermarkInput, _watermarkAddDate, DateTime.Today)
+        : null;
+
+    public string WatermarkPreview => WatermarkText is string text ? $"Texte incrusté : « {text} »" : "";
+
+    public bool ShowWatermarkPreview => WatermarkText != null;
+
+    private void OnWatermarkChanged()
+    {
+        OnPropertyChanged(nameof(WatermarkPreview));
+        OnPropertyChanged(nameof(ShowWatermarkPreview));
+        OnSettingsChanged();
+    }
+
     public bool SaveNextToOriginal
     {
         get => _outputLocation == OutputLocation.NextToOriginal;
@@ -195,6 +250,8 @@ public sealed class MainViewModel : ViewModelBase
                 return $"La taille maximale doit être d'au moins {SizeFormatter.Format(DocumentCompressor.MinimumMaxBytes)}.";
             if (_outputLocation == OutputLocation.Folder && string.IsNullOrWhiteSpace(_outputFolder))
                 return "Choisissez le dossier où enregistrer les fichiers compressés.";
+            if (_watermarkEnabled && string.IsNullOrWhiteSpace(_watermarkInput))
+                return "Saisissez le texte du filigrane (destinataire et motif).";
             return null;
         }
     }
@@ -359,7 +416,12 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanCompress || MaxBytes is not long maxBytes)
             return;
 
-        var options = new CompressionOptions { MaxBytes = maxBytes, ConvertImagesToPdf = ConvertImagesToPdf };
+        var options = new CompressionOptions
+        {
+            MaxBytes = maxBytes,
+            ConvertImagesToPdf = ConvertImagesToPdf,
+            WatermarkText = WatermarkText,
+        };
         var output = new OutputSettings { Location = _outputLocation, Folder = _outputFolder };
 
         _cancellation = new CancellationTokenSource();
@@ -500,6 +562,7 @@ public sealed class MainViewModel : ViewModelBase
         _settings.Unit = _unit;
         _settings.ConvertImagesToPdf = _convertImagesToPdf;
         _settings.TwoImagesPerPage = _twoImagesPerPage;
+        _settings.WatermarkAddDate = _watermarkAddDate;
         _settings.OutputLocation = _outputLocation;
         _settings.OutputFolder = _outputFolder;
         _settings.Save();

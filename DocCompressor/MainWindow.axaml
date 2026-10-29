@@ -3,12 +3,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:DocCompressor.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="800"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="860"
         x:Class="DocCompressor.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Compresseur de documents"
-        Width="1000" Height="800"
-        MinWidth="760" MinHeight="560"
+        Width="1000" Height="860"
+        MinWidth="760" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
         Background="#F3F4F6">
 
   <Window.Styles>
@@ -127,7 +128,7 @@
 
     <!-- Réglages -->
     <Border Grid.Row="2" Classes="card" Padding="16" Margin="0,16,0,0" IsEnabled="{Binding IsIdle}">
-      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
         <TextBlock Grid.Row="0" Classes="label" Text="Taille maximale par fichier"/>
         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
           <NumericUpDown Value="{Binding MaxSize}" Increment="{Binding SizeIncrement}"
@@ -161,8 +162,24 @@
                     Content="Deux images par page (recto et verso sur la même page)"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Classes="label" Text="Enregistrer" Margin="0,18,24,0" VerticalAlignment="Top"/>
+        <!-- Filigrane incrusté sur tout le document, comme FiligraneFacile -->
+        <TextBlock Grid.Row="3" Classes="label" Text="Filigrane" Margin="0,18,24,0" VerticalAlignment="Top"/>
         <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" Spacing="4">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <CheckBox IsChecked="{Binding WatermarkEnabled}" Content="Ajouter :" Margin="0,0,8,0"/>
+            <TextBox Grid.Column="1" Text="{Binding WatermarkInput}" IsEnabled="{Binding WatermarkEnabled}"
+                     VerticalAlignment="Center"
+                     Watermark="Ex. : Pour l'agence Dupont, dossier de location"
+                     ToolTip.Tip="Indiquez le destinataire et le motif : le document ne pourra pas servir à autre chose. Le filigrane est incrusté dans l'image (les PDF sont convertis en images)."/>
+            <CheckBox Grid.Column="2" Margin="12,0,0,0" IsChecked="{Binding WatermarkAddDate}"
+                      IsEnabled="{Binding WatermarkEnabled}" Content="Ajouter la date du jour"/>
+          </Grid>
+          <TextBlock Classes="muted" FontSize="12" Text="{Binding WatermarkPreview}" TextWrapping="Wrap"
+                     IsVisible="{Binding ShowWatermarkPreview}"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" Classes="label" Text="Enregistrer" Margin="0,18,24,0" VerticalAlignment="Top"/>
+        <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" Spacing="4">
           <!-- Pas de GroupName : le gestionnaire de groupe d'Avalonia 11.0 décoche l'autre bouton en écrasant sa liaison.
                L'exclusivité est assurée par le modèle de vue. -->
           <!-- TextBlock explicite : dans un Content texte, « _ » serait pris pour un raccourci clavier -->

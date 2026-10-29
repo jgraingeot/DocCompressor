@@ -24,12 +24,28 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Opened += (_, _) => FitToScreen();
         DropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver);
         DropZone.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
         DropZone.AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
     private MainViewModel ViewModel => (MainViewModel)DataContext!;
+
+    /// <summary>
+    /// Réduit la fenêtre si l'écran est trop petit (ordinateurs portables en 1366×768)
+    /// </summary>
+    private void FitToScreen()
+    {
+        var screen = Screens.ScreenFromVisual(this) ?? Screens.Primary;
+        if (screen == null)
+            return;
+        var area = screen.WorkingArea.Size.ToSize(screen.Scaling);
+        if (Height > area.Height - 40)
+            Height = Math.Max(MinHeight, area.Height - 40);
+        if (Width > area.Width - 40)
+            Width = Math.Max(MinWidth, area.Width - 40);
+    }
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {

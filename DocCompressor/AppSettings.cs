@@ -12,6 +12,7 @@ public sealed class AppSettings
     public SizeUnit Unit { get; set; } = SizeUnit.Megabytes;
     public bool ConvertImagesToPdf { get; set; }
     public bool TwoImagesPerPage { get; set; }
+    public bool WatermarkAddDate { get; set; } = true;
     public OutputLocation OutputLocation { get; set; } = OutputLocation.NextToOriginal;
     public string? OutputFolder { get; set; }
 

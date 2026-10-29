@@ -17,7 +17,10 @@ internal static class PdfRasterizer
     // Plus grand côté d'une page rendue, en pixels (évite de saturer la mémoire avec les grands formats)
     private const int MaxPageLongSide = 4000;
 
-    public static CompressionOutcome Compress(byte[] data, long maxBytes, CancellationToken ct)
+    /// <summary>
+    /// Convertit les pages en images JPEG sous la taille maximale ; watermark : filigrane à incruster, ou null
+    /// </summary>
+    public static CompressionOutcome Compress(byte[] data, long maxBytes, string? watermark, CancellationToken ct)
     {
         using var document = PdfiumDocument.Load(data);
         int pageCount = document.PageCount;
@@ -38,6 +41,8 @@ internal static class PdfRasterizer
                 ct.ThrowIfCancellationRequested();
                 pixelSizes[i] = PixelSize(pageSizes[i], dpi);
                 using var bitmap = document.RenderPage(i, pixelSizes[i].Width, pixelSizes[i].Height);
+                if (!string.IsNullOrWhiteSpace(watermark))
+                    Watermark.Apply(bitmap, watermark);
                 grays[i] = ImageOps.IsGrayscale(bitmap);
                 using var gray = grays[i] ? ImageOps.ToGray(bitmap) : null;
                 var target = gray ?? bitmap;
@@ -63,8 +68,9 @@ internal static class PdfRasterizer
             if (pdf.Length <= maxBytes)
             {
                 string pagesText = pageCount > 1 ? $"{pageCount} pages" : "1 page";
+                string watermarkText = string.IsNullOrWhiteSpace(watermark) ? "" : "Filigrane ajouté, ";
                 return new CompressionOutcome(pdf, ".pdf", CompressionMethod.PdfRasterized,
-                    $"PDF converti en images : {pagesText}, {dpi} ppp, qualité {quality} (texte non sélectionnable)");
+                    $"{watermarkText}PDF converti en images : {pagesText}, {dpi} ppp, qualité {quality} (texte non sélectionnable)");
             }
         }
 
